@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "469881156153",
+    "firebase_url": "https://iochat-29c46.firebaseio.com",
+    "project_id": "iochat-29c46",
+    "storage_bucket": "iochat-29c46.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:469881156153:android:d8c283456b5d5efd5193e8",
+        "android_client_info": {
+          "package_name": "app.iochat.com"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "469881156153-enf3vlksugjt6ikm5bc7dl3fvvq20nnb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYOqO51jQRblKkx4JKB-ic1b2cONvrujg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "469881156153-enf3vlksugjt6ikm5bc7dl3fvvq20nnb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

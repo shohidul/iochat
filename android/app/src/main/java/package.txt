@@ -1,0 +1,1 @@
+# We are using kotlin, java is a temp dir for codemagic build script.

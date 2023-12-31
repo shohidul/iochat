@@ -1,0 +1,227 @@
+workflows:
+  iochat: &baseworkflow
+    name: iochat
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    integrations:
+      app_store_connect: "Codemagic iochat"
+    environment: &env
+      groups:
+        - google_credentials
+      android_signing:
+        - "iochat Keystore Android"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: $BUNDLE_ID_IOS
+      vars:
+        APP_NAME: iochat
+        SHORT_NAME: iochat
+        URL_SCHEME: iochat
+        SHARE_PATH: /share
+        BASE_URL: login.iochat.com
+        APP_HOST: '*.iochat.com'
+        BUILD_NAME: 5.0.2
+        PACKAGE_NAME: org.iochat.app
+        BUNDLE_ID_ANDROID: org.iochat.app
+        BUNDLE_ID_IOS: org.iochat.app
+        APPLICATION_APPLE_ID: 1234567890
+        BEHIND_APP_BAR: 'true'
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    cache:
+      cache_paths: []
+    scripts:
+      - name: Create .env file with variable
+        script: |
+          CUSTOM_DOMAINS="$(cat $FCI_BUILD_DIR/app_client/$SHORT_NAME/domains.txt 2>/dev/null || echo $APP_HOST)"
+
+          echo $FCI_BUILD_DIR/.env > $FCI_BUILD_DIR
+          cat > "$FCI_BUILD_DIR/.env" <<EOF
+          APP_NAME=$APP_NAME
+          SHORT_NAME=$SHORT_NAME
+          URL_SCHEME=$URL_SCHEME
+          SHARE_PATH=$SHARE_PATH
+          BASE_URL=$BASE_URL
+          APP_HOST=$APP_HOST
+          CUSTOM_DOMAINS=$(echo "$CUSTOM_DOMAINS" | tr '\n' ',' | sed 's/,$//')
+          BEHIND_APP_BAR=$BEHIND_APP_BAR
+          EOF
+      - name: Create key.properties
+        script: |
+          cat >> "$CM_BUILD_DIR/android/key.properties" <<EOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=$CM_KEYSTORE_PATH
+          EOF
+      - name: Set up local properties
+        script: |
+          echo "flutter.sdk=$HOME/programs/flutter" > "$FCI_BUILD_DIR/android/local.properties"
+          echo "-keep class $PACKAGE_NAME.BuildConfig { *; }" > android/app/proguard-rules.pro
+
+      - name: Get Flutter packages
+        script: | 
+          flutter packages pub get
+
+      - name: Print variables
+        script: |
+          cat $FCI_BUILD_DIR/.env
+          echo $FCI_BUILD_DIR/app_client/$SHORT_NAME/icon_launcer.png
+          echo $FCI_BUILD_DIR/app_client/$SHORT_NAME/google-services.json
+          echo $FCI_BUILD_DIR/app_client/$SHORT_NAME/GoogleService-Info.plist
+
+      - name: Rename app name, bundleId, package name 
+        script: |
+          sed -i '' 's/org.iochat.app/'$BUNDLE_ID_IOS'/g' $FCI_BUILD_DIR/ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/org.iochat.app/'$BUNDLE_ID_IOS'/g' $FCI_BUILD_DIR/ios/Runner/Runner.entitlements
+          sed -i '' 's/org.iochat.app/'$BUNDLE_ID_IOS'/g' $FCI_BUILD_DIR/ios/ShareExtension/ShareViewController.swift                
+          sed -i '' 's/org.iochat.app/'$BUNDLE_ID_IOS'/g' $FCI_BUILD_DIR/ios/ShareExtension/ShareExtension.entitlements
+          flutter pub global activate rename
+          # flutter pub global run rename --bundleId $BUNDLE_ID_IOS -t ios
+          flutter pub global run rename setBundleId --targets android --value $BUNDLE_ID_ANDROID 
+          flutter pub global run rename setAppName --targets ios,android --value "$APP_NAME"
+          flutter pub run change_app_package_name:main $PACKAGE_NAME
+
+      - name: Add custom domains for applinks
+        script: |
+          CUSTOM_DOMAINS="$(cat $FCI_BUILD_DIR/app_client/$SHORT_NAME/domains.txt 2>/dev/null || echo $APP_HOST)"
+
+          # Loop through the domain names and add them to the Runner.entitlements file
+          for DOMAIN in $CUSTOM_DOMAINS
+          do
+            /usr/libexec/PlistBuddy -c "Add :com.apple.developer.associated-domains:1 string 'applinks:$DOMAIN'" $FCI_BUILD_DIR/ios/Runner/Runner.entitlements
+          done
+
+          # Loop through the domain names and add them to the AndroidManifest.xml file
+          for DOMAIN in $CUSTOM_DOMAINS
+          do
+            sed -i '' "/<data android:host=\"@string\/APP_HOST\" \/>/a \\
+                          <data android:host=\"$DOMAIN\" \/>" $FCI_BUILD_DIR/android/app/src/main/AndroidManifest.xml
+          done
+
+      - name: Replace icons file 
+        script: |    
+          chmod 755 $FCI_BUILD_DIR/assets/launcher/*
+          cp $FCI_BUILD_DIR/app_client/$SHORT_NAME/*.png $FCI_BUILD_DIR/assets/launcher/
+          dart run flutter_launcher_icons
+
+      - name: Replace firebase service json file
+        script: |  
+          cp $FCI_BUILD_DIR/app_client/$SHORT_NAME/google-services.json $FCI_BUILD_DIR/android/app/google-services.json
+          cp $FCI_BUILD_DIR/app_client/$SHORT_NAME/GoogleService-Info.plist $FCI_BUILD_DIR/ios/Runner/GoogleService-Info.plist
+
+      - name: Build AAB with Flutter
+        script: | 
+          BUILD_NUMBER=$(($(google-play get-latest-build-number --package-name "$BUNDLE_ID_ANDROID") + 1))
+          sed -i '' 's/5.0.0+1/'$BUILD_NAME+$BUILD_NUMBER'/g' $FCI_BUILD_DIR/pubspec.yaml    
+          flutter build appbundle --release \
+            --build-name=$BUILD_NAME \
+            --build-number=$BUILD_NUMBER
+
+          # flutter build apk --debug
+
+      - name: Install pods
+        script: | 
+          find . -name "Podfile" -execdir pod install \;
+
+      - name: Set up code signing settings on Xcode project
+        script: | 
+          xcode-project use-profiles --code-signing-setup-verbose-logging
+
+      - name: Flutter build ipa
+        script: | 
+          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number "$APPLICATION_APPLE_ID") + 1))
+          sed -i '' 's/5.0.0+1/'$BUILD_NAME+$BUILD_NUMBER'/g' $FCI_BUILD_DIR/pubspec.yaml
+          flutter build ipa --release \
+            --build-name=$BUILD_NAME \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist ~/export_options.plist
+
+          # flutter build ios --debug --no-codesign
+    artifacts:
+      - build/**/outputs/apk/**/*.apk
+      - build/**/outputs/bundle/**/*.aab
+      - build/**/outputs/**/mapping.txt
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - '*.snap'
+      - build/windows/**/*.msix
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - alerts@fellowdigitals.com
+        notify:
+          success: true
+          failure: false
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        in_app_update_priority: 3
+        submit_as_draft: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+        # beta_groups:
+        #   - Fellow Testers
+
+  viadesk:
+    <<: *baseworkflow
+    name: Viadesk
+    environment:
+      <<: *env
+      android_signing:
+        - "Viadesk Keystore Android"
+      vars:
+        APP_NAME: Viadesk
+        SHORT_NAME: viadesk
+        URL_SCHEME: viadesk
+        SHARE_PATH: /do/sharetoiochat
+        BASE_URL: login.viadesk.com
+        APP_HOST: '*.viadesk.com'
+        BUILD_NAME: 5.0.2
+        PACKAGE_NAME: com.viadesk.app
+        BUNDLE_ID_ANDROID: com.viadesk.app
+        BUNDLE_ID_IOS: com.viadesk.Viadesk
+        APPLICATION_APPLE_ID: 455647635
+        BEHIND_APP_BAR: 'false'
+
+  fellow:
+    <<: *baseworkflow
+    name: Fellow
+    environment:
+      <<: *env
+      vars:
+        APP_NAME: Fellow
+        SHORT_NAME: fellow
+        URL_SCHEME: iochat
+        SHARE_PATH: /share
+        BASE_URL: login.coursepath.com
+        APP_HOST: '*.coursepath.com'
+        BUILD_NAME: 5.0.2
+        PACKAGE_NAME: host.fellow.app
+        BUNDLE_ID_ANDROID: host.fellow.app
+        BUNDLE_ID_IOS: host.fellow.app
+        APPLICATION_APPLE_ID: 6444327421        
+        BEHIND_APP_BAR: 'false'
+
+  envirowater:
+    <<: *baseworkflow
+    name: EnviroWater Group
+    environment:
+      <<: *env
+      vars:
+        APP_NAME: EnviroWater Group
+        SHORT_NAME: envirowater
+        URL_SCHEME: viadesk
+        SHARE_PATH: /do/sharetoiochat
+        BASE_URL: envirowatergroup.viadesk.com
+        APP_HOST: 'envirowatergroup.viadesk.com'
+        BUILD_NAME: 5.0.2
+        PACKAGE_NAME: com.envirochemie.iochat.app
+        BUNDLE_ID_ANDROID: com.envirochemie.iochat.app
+        BUNDLE_ID_IOS: com.envirochemie.iochat.app
+        APPLICATION_APPLE_ID: 6474244053 
+        BEHIND_APP_BAR: 'false'
