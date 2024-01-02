@@ -11,7 +11,7 @@ class Constants {
   // static String baseUrl = 'https://leidner.eu.ngrok.io/?l=${Platform.localeName}';
   static String appTitle = FlutterConfig.get('APP_NAME');
   static String appShortName = FlutterConfig.get('SHORT_NAME');
-  static String callbackUrlScheme = FlutterConfig.get('URL_SCHEME');
+  static String callbackUrlScheme = 'iochat'; //FlutterConfig.get('URL_SCHEME');
   static String sharePath = FlutterConfig.get('SHARE_PATH');
   static bool behindAppBar = FlutterConfig.get('BEHIND_APP_BAR') == 'true' ? true : false;
 
