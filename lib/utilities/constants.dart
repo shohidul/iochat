@@ -6,11 +6,11 @@ import 'package:flutter_config/flutter_config.dart';
 class Constants {
   Constants._();
 
-  static String baseUrl = 'https://iochat.netlify.app' //"https://${FlutterConfig.get('BASE_URL')}/?l=${Platform.localeName}";
+  static String baseUrl = 'https://iochat.netlify.app'; //"https://${FlutterConfig.get('BASE_URL')}/?l=${Platform.localeName}";
   // static String baseUrl = 'https://flutter.coursepath-staging.com/?l=${Platform.localeName}';
   // static String baseUrl = 'https://leidner.eu.ngrok.io/?l=${Platform.localeName}';
-  static String appTitle = 'IO Chat' //FlutterConfig.get('APP_NAME');
-  static String appShortName = 'iochat' //FlutterConfig.get('SHORT_NAME');
+  static String appTitle = 'IO Chat'; //FlutterConfig.get('APP_NAME');
+  static String appShortName = 'iochat'; //FlutterConfig.get('SHORT_NAME');
   static String callbackUrlScheme = 'iochat'; //FlutterConfig.get('URL_SCHEME');
   static String sharePath = '/share'//FlutterConfig.get('SHARE_PATH');
   static bool behindAppBar = FlutterConfig.get('BEHIND_APP_BAR') == 'true' ? true : false;
