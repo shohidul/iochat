@@ -71,7 +71,7 @@ class Constants {
   static const List<String> unsupportedFileExtensions = <String>['txt', 'xml'];
   static String customDomains = ''; //FlutterConfig.get('CUSTOM_DOMAINS');
   static const List<String> allowedDomains = <String>[
-    'netlify.app'
+    'netlify.app',
     'ngrok.io', // dev purpose
     'ngrok-free.app'
   ];
