@@ -44,10 +44,12 @@ dependencies:
   path_provider: 2.1.1                # Publisher flutter.dev, a plugin for finding commonly used locations on the filesystem.
   url_launcher: 6.1.14                # Publisher flutter.dev, used for launching Url to external application.
   
-  firebase_core: 2.18.0               # Publisher firebase.google.com
-  firebase_messaging: 14.7.0          # Publisher firebase.google.com, a plugin to use the Firebase Cloud Messaging API.
+  cloud_firestore: 4.14.0             # Publisher firebase.google.com, Flutter plugin for Cloud Firestore.
+  firebase_auth: 4.16.0               # Publisher firebase.google.com, Flutter plugin for Firebase Auth
+  firebase_core: 2.24.2               # Publisher firebase.google.com
   firebase_core_platform_interface: 5.0.0
                                       # Publisher firebase.google.com, a plugin to use the Firebase Platform.
+  firebase_messaging: 14.7.0          # Publisher firebase.google.com, a plugin to use the Firebase Cloud Messaging API.
 
   get_it: 7.6.4                       # Publisher fluttercommunity.dev, accessing an object from anywhere, service locator.
   flutter_downloader: 1.11.4          # Publisher fluttercommunity.dev, a plugin for creating and managing download tasks.

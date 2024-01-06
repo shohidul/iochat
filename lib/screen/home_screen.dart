@@ -105,17 +105,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(final AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _webViewCompleter.future.then((controller) async {
-        bool? isWaxExpired = await controller.evaluateJavascript(source: 'wax != null && wax.expired();');
-        if (isWaxExpired != null && isWaxExpired && !_receiveShareContent.isSharePanel()) {
-          controller.reload();
-        }
-
-        // only for iOS
-        // if (Platform.isIOS && _receiveShareContent.isInitialSharedContent()) {
-        //   _receiveShareContent.loadShareUrl();
-        // }
-      });
     }
   }
 
@@ -251,7 +240,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             Cookie? cookie = await _cookieManager.getCookie(url: uri!, name: 'session');
                             String cookieString = cookie?.value ?? '';
 
-                            listenFCMDeviceToken(uri.toString(), cookieString);
+                            Future.delayed(const Duration(seconds: 2)).then((val) async {
+                              dynamic currentUser = await controller.evaluateJavascript(
+                                source: '''
+                                  var result = null;
+                                  if (typeof currentUser !== 'undefined' && currentUser !== null) {
+                                    result = JSON.stringify(currentUser);
+                                  }
+                                  result;
+                                ''',
+                              );
+                              if (currentUser != null) {
+                                print('currentUser delayed $currentUser');
+                                Map<dynamic, dynamic> user = jsonDecode(currentUser);
+                                print('uid>>>> ${user['uid']}');
+                                listenFCMDeviceToken(user['uid']);
+                              }
+                            });
+                          
 
                             // update and save the subject
                             if (isNotSharePath(uri) &&

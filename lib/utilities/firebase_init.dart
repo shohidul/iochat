@@ -1,46 +1,46 @@
-import 'dart:convert';
-import 'package:iochat/utilities/common_util.dart';
+import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:iochat/utilities/di.dart';
-import 'package:iochat/utilities/useragent.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'subject.dart';
 
 FirebaseMessaging _firebaseMessaging = locator<FirebaseMessaging>();
 Subject _subject = Subject.getInstance();
 
-void listenFCMDeviceToken(String uri, String cookieString) {
-  if (cookieString.isNotEmpty && _subject.isChanged(uri, cookieString)) {
+void listenFCMDeviceToken(String uid) {
     _firebaseMessaging.getToken().then((token) {
-      if (token != null) sendDeviceToken(token, cookieString);
+      print('token $token');
+      if (token != null) sendDeviceToken(token, uid);
     });
-  }
   _firebaseMessaging.onTokenRefresh.listen((token) {
-    if (cookieString.isNotEmpty) {
-      sendDeviceToken(token, cookieString);
-    }
+      sendDeviceToken(token, uid);
   });
 }
 
-void sendDeviceToken(String token, String sessionId) async {
-  // String userAgent = await getUserAgent();
-  final url = Uri.parse('${_subject.getDomainUrl()}/api/v1/iochat/tokens');
-
-  Map<String, String> headers = getHeaders();
-  headers.addAll({
-    'Content-Type': 'application/x-www-form-urlencoded',
-    'Authorization': 'Session $sessionId',
-    'User-Agent': UserAgent.getInstance().get()
-  });
+void sendDeviceToken(String token, String uid) async {
 
   try {
-    await http.post(
-      url,
-      headers: headers,
-      body: {'secret': token},
-      encoding: Encoding.getByName('utf-8'),
-    );
+      CollectionReference tokensCollection = FirebaseFirestore.instance.collection('tokens');
+
+      // Check if the token already exists for the user
+      QuerySnapshot querySnapshot = await tokensCollection
+          .where('token', isEqualTo: token)
+          .where('uid', isEqualTo: uid)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        // Token doesn't exist for the user, add it to Firestore
+        await tokensCollection.add({
+          'uid': uid,
+          'token': token,
+          'platform': Platform.operatingSystem,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Token already exists for the user, handle accordingly (optional)
+        print('Token already exists for the user: $token');
+      }
   } catch (e) {
     debugPrint(e.toString());
   }
